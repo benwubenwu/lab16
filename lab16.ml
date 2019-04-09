@@ -42,21 +42,33 @@ buses get 20. mpg, cars get 30. mpg, and trucks get 15. mpg. (Notice
 that these values are floats.)
 ....................................................................*)
    
-let get_efficiency _ = failwith "get_efficiency not implemented" ;; 
+let get_efficiency v = 
+  match v with
+  | Bus (p, f) -> 20. 
+  | Car (p, f) -> 30.
+  | Truck (p, f) -> 15. ;; 
      
 (*....................................................................
 Exercise 2: Write a function get_energy that returns the amount of
 energy a vehicle has available.
 ....................................................................*)
    
-let get_energy _ = failwith "get_energy not implemented" ;;
+let get_energy v = 
+  match v with
+  | Bus (p, f)
+  | Car (p, f)
+  | Truck (p, f) -> f ;;
 
 (*....................................................................
 Exercise 3: Write a function get_pos that returns the x-y position of
 a vehicle as a point.
 ....................................................................*)
    
-let get_pos _ = failwith "get_pos not implemented" ;;
+let get_pos v = 
+  match v with
+  | Bus (p, f)
+  | Car (p, f)
+  | Truck (p, f) -> p ;;
      
 (*....................................................................
 Exercise 4: Let's define a function that allows these vehicles to
@@ -74,7 +86,17 @@ return a new vehicle with the updated position and energy. (Calls with
 negative distance should raise an Invalid_argument exception.)
 ....................................................................*)
 
-let go _ = failwith "not implemented" ;;
+let go (v : vehicle) (distance : float) (direction : float) : vehicle = 
+  let possible_distance = get_energy v *. get_efficiency v in
+  if distance < 0. then raise (Invalid_argument "distance cannot be negative") 
+  else
+    match v with
+    | Bus (p, f) -> if possible_distance < distance then Bus ((offset p possible_distance direction), 0.)
+                    else Bus ((offset p distance direction), f -. distance)
+    | Car (p, f) -> if possible_distance < distance then Car ((offset p possible_distance direction), 0.)
+                    else Car ((offset p distance direction), f -. distance)
+    | Truck (p, f) -> if possible_distance < distance then Truck ((offset p possible_distance direction), 0.)
+                      else Truck ((offset p distance  direction), f -. distance) ;;  
 
 (*====================================================================
 Part 2: Object-oriented vehicles
@@ -141,13 +163,13 @@ class vehicle_class (capacity: float)
     ................................................................*)
 
     method get_distance : float = 
-      failwith "get_distance method not implemented"
+      odometer 
 
     method get_pos : point = 
-      failwith "get_pos method not implemented"
+      pos
          
     method get_energy : float = 
-      failwith "get_energy method not implemented"
+      energy
 
     (*................................................................
     Exercise 6: Now add a method to your vehicle class called "go"
@@ -160,8 +182,17 @@ class vehicle_class (capacity: float)
     it before.
     ................................................................*)
 
-    method go _ = 
-      failwith "go method not implemented"
+    method go distance direction = 
+      let possible_distance = get_energy * efficiency in
+      if distance > possible_distance 
+        then 
+          odometer <- get_distance +. possible_distance ;
+          energy <- 0. ;
+          pos <- offset get_pos possible_distance direction ;
+      else
+          odometer <- get_distance +. distance ;
+          energy <- get_energy - distance ;
+          pos <- offset get_pos distance direction        
 
     (*................................................................
     Exercise 7: Since we'll eventually run out of energy, it would be
@@ -171,7 +202,7 @@ class vehicle_class (capacity: float)
     ................................................................*)
    
     method fill : unit = 
-      failwith "fill method not implemented"
+      energy <- capacity
   end ;; 
 
 (*====================================================================
