@@ -86,17 +86,20 @@ return a new vehicle with the updated position and energy. (Calls with
 negative distance should raise an Invalid_argument exception.)
 ....................................................................*)
 
-let go (v : vehicle) (distance : float) (direction : float) : vehicle = 
-  let possible_distance = get_energy v *. get_efficiency v in
-  if distance < 0. then raise (Invalid_argument "distance cannot be negative") 
+let go (veh : vehicle) (distance : float) (angle : float) : vehicle =
+  if distance < 0. then
+    raise (Invalid_argument "go: can't move in reverse")
   else
-    match v with
-    | Bus (p, f) -> if possible_distance < distance then Bus ((offset p possible_distance direction), 0.)
-                    else Bus ((offset p distance direction), f -. distance)
-    | Car (p, f) -> if possible_distance < distance then Car ((offset p possible_distance direction), 0.)
-                    else Car ((offset p distance direction), f -. distance)
-    | Truck (p, f) -> if possible_distance < distance then Truck ((offset p possible_distance direction), 0.)
-                      else Truck ((offset p distance  direction), f -. distance) ;;  
+    let energy = get_energy veh in 
+    let efficiency = get_efficiency veh in
+    let p = get_pos veh in
+    let distance = min distance (energy *. efficiency) in
+    let new_p = offset p distance angle in
+    let new_energy = energy -. distance /. efficiency in
+    match veh with 
+    | Bus _ -> Bus (new_p, new_energy) 
+    | Car _ -> Car (new_p, new_energy)
+    | Truck _ -> Truck (new_p, new_energy) ;;
 
 (*====================================================================
 Part 2: Object-oriented vehicles
@@ -182,17 +185,14 @@ class vehicle_class (capacity: float)
     it before.
     ................................................................*)
 
-    method go distance direction = 
-      let possible_distance = get_energy * efficiency in
-      if distance > possible_distance 
-        then 
-          odometer <- get_distance +. possible_distance ;
-          energy <- 0. ;
-          pos <- offset get_pos possible_distance direction ;
+    method go (distance : float) (angle : float) : unit = 
+      if distance < 0. then
+        raise (Invalid_argument "go: can't move in reverse")
       else
-          odometer <- get_distance +. distance ;
-          energy <- get_energy - distance ;
-          pos <- offset get_pos distance direction        
+        let distance = min distance (energy *. efficiency) in
+        pos <- offset pos distance angle;
+        energy <- energy -. distance /. efficiency;
+        odometer <- odometer +. distance      
 
     (*................................................................
     Exercise 7: Since we'll eventually run out of energy, it would be
@@ -229,7 +229,7 @@ Bus - 200.
 
 class car (initial_energy : float) (initial_pos : point) = 
   object
-    (* implement the car class here *)
+    inherit vehicle_class 100. 30. initial_energy initial_pos
   end ;;
 
 (*....................................................................
@@ -239,7 +239,7 @@ with the truck's specifications given in Part 1.
 
 class truck (initial_energy : float) (initial_pos : point) = 
   object
-    (* implement the truck class here *)
+    inherit vehicle_class 150. 15. initial_energy initial_pos 
   end ;; 
 
 (*....................................................................
@@ -275,5 +275,16 @@ class bus (initial_energy : float) (initial_pos : point) (seats : int) =
 
     method get_seats : int = seats
 
-    (* complete the implementation of the bus class here *)
+    inherit vehicle_class 200. 20. initial_energy initial_pos as super
+    
+    method pick_up (n : int) : unit =
+      passengers <- min seats (passengers + n)
+   
+    method drop_off (n : int) : unit =
+      passengers <- max 0 (passengers - n)
+    
+    method! fill = 
+      this#drop_off passengers;
+      super#fill
+  
   end ;;
